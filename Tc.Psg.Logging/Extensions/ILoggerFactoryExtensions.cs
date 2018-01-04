@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Serilog;
 using Serilog.Core;
+using Serilog.Events;
 
 using Tc.Psg.Logging;
 
@@ -24,6 +25,7 @@ namespace Microsoft.Extensions.Logging
                 .Enrich.WithEnvironmentUserName()
                 .Enrich.WithMachineName()
                 .MinimumLevel.ControlledBy(loggingLevelSwitch)
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .WriteTo.Seq(options.SeqServerUrl, apiKey: options.SeqApiKey, controlLevelSwitch: loggingLevelSwitch)
                 .CreateLogger();
 
