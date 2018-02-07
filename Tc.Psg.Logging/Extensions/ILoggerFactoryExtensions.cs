@@ -48,16 +48,36 @@ namespace Microsoft.Extensions.Logging
         /// <returns></returns>
         public static ILoggerFactory AddPsgLogging(this ILoggerFactory loggerFactory, PsgLoggingOptions options)
         {
-            LoggingLevelSwitch loggingLevelSwitch = new LoggingLevelSwitch(LogEventLevel.Debug);
+            LogEventLevel initialLogLevel = LogEventLevel.Debug;
 
-            Log.Logger = new LoggerConfiguration()
+            if (!string.IsNullOrWhiteSpace(options.MinimumLogLevel))
+            {
+                Enum.TryParse(options.MinimumLogLevel, out initialLogLevel);
+            }
+
+            LoggingLevelSwitch loggingLevelSwitch = new LoggingLevelSwitch(initialLogLevel);
+
+            LoggerConfiguration loggerConfiguration = new LoggerConfiguration()
                 .Enrich.FromLogContext()
                 .Enrich.WithEnvironmentUserName()
                 .Enrich.WithMachineName()
                 .MinimumLevel.ControlledBy(loggingLevelSwitch)
-                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                .WriteTo.Seq(options.SeqServerUrl, apiKey: options.SeqApiKey, controlLevelSwitch: loggingLevelSwitch)
-                .CreateLogger();
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning);
+
+            if (options.UseRollingFiles)
+            {
+                loggerConfiguration.WriteTo.RollingFile(options.GetFullRollingFileName(),
+                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff}  [{Level}]  {SourceContext}  {Message}{NewLine}{Exception}",
+                    shared: options.UseMultiProcessLogging
+                    );
+            }
+
+            if (options.UseSeq)
+            {
+                loggerConfiguration.WriteTo.Seq(options.SeqServerUrl, apiKey: options.SeqApiKey, controlLevelSwitch: loggingLevelSwitch);
+            }
+
+            Log.Logger = loggerConfiguration.CreateLogger();
 
             return loggerFactory.AddSerilog();
         }
